@@ -4,7 +4,7 @@ class Point {
     this.y = y;
     this.userData = userData;
   }
-  
+
 }
 class Region {
   constructor(cx, cy, w, h){
@@ -13,49 +13,69 @@ class Region {
     this.w = w;
     this.h = h;
   }
+  // half width
+  hW() {
+    return this.w/2;
+  }
+  // half height
+  hH() {
+    return this.h/2;
+  }
+  // quarter width
+  qW() {
+    return this.hW()/2;
+  }
+  // quarter height
+  qH() {
+    return this.hH()/2;
+  }
+  // get the sides of this region
   left() {
-    return this.cx - this.w;
+    return this.cx - this.hW();
   }
   right() {
-    return this.cx + this.w;
+    return this.cx + this.hW();
   }
   up() {
-    return this.cy - this.h;
+    return this.cy - this.hH();
   }
   bottom() {
-    return this.cy + this.h;
+    return this.cy + this.hH();
   }
-  
+  Center(sub) {
+    let quad = sub.slice(0,1) + sub.slice(5,6).toLowerCase();
+    return this[quad + 'Center']();
+  }
+  // get the internal region of the next subdivisions
   nwCenter() {
-    return { cx: this.left() + this.w/2,
-      cy: this.up() + this.h/2,
-      w: this.w/2,
-      h: this.h/2};
+    return new Region(this.left() + this.qW(),
+      this.up() + this.qH(),
+      this.hW(),
+      this.hH());
   }
   neCenter() {
-    return { cx: this.right() - this.w/2,
-      cy: this.up() + this.h/2,
-      w: this.w/2,
-      h: this.h/2};
+    return new Region(this.right() - this.qW(),
+      this.up() + this.qH(),
+      this.hW(),
+      this.hH());
   }
   swCenter() {
-    return { cx: this.left() + this.w/2,
-      cy: this.bottom() - this.h/2,
-      w: this.w/2,
-      h: this.h/2};
+    return new Region(this.left() + this.qW(),
+      this.bottom() - this.qH(),
+      this.hW(),
+      this.hH());
   }
   seCenter() {
-    return { cx: this.right() - this.w/2,
-      cy: this.bottom() - this.h/2,
-      w: this.w/2,
-      h: this.h/2};
-  }    
+    return new Region(this.right() - this.qW(),
+      this.bottom() - this.qH(),
+      this.hW(),
+      this.hH());
+  }
+  // does a Point or x,y exist in this region
   contains(point, y) {
+    // point can be a Point object that has x and y or it can be x
     if(point instanceof Point) {
-      return (this.left() <= point.x 
-        && this.right() > point.x 
-        && this.up() <= point.y
-        && this.bottom() > point.y);
+      return this.contains(point.x, point.y);
     } else {
       return (this.left() <= point
         && this.right() > point
@@ -63,17 +83,9 @@ class Region {
         && this.bottom() > y);
     }
   }
-  /*intersects(range) {
-    return (this.contains(range.left(),range.up()) ||
-      this.contains(range.right(), range.up()) ||
-      this.contains(range.left(), range.bottom()) ||
-      this.contains(range.right(), range.bottom()) ||
-      range.contains(this.left(),this.up()) ||
-      range.contains(this.right(), this.up()) ||
-      range.contains(this.left(), this.bottom()) ||
-      range.contains(this.right(), this.bottom()));
-  }*/
   intersects(range) {
+    // if all of the sides of the range are not outside this region then it
+    // must intersect
     return !(this.left() > range.right()
       || this.right() < range.left()
       || this.up() > range.bottom()
@@ -87,60 +99,60 @@ class QuadTree {
     this.capacity = cap;
     this.points = [];
     this.subdivided = false;
+    this.subdivisions = ["northWest", "northEast", "southWest", "southEast"];
   }
   subdivide() {
-    let nw = this.region.nwCenter();
-    let ne = this.region.neCenter();
-    let sw = this.region.swCenter();
-    let se = this.region.seCenter();
-    this.northWest = new QuadTree(new Region(nw.cx, nw.cy, nw.w, nw.h), this.capacity);
-    this.northEast = new QuadTree(new Region(ne.cx, ne.cy, ne.w, ne.h), this.capacity);
-    this.southWest = new QuadTree(new Region(sw.cx, sw.cy, sw.w, sw.h), this.capacity);
-    this.southEast = new QuadTree(new Region(se.cx, se.cy, se.w, se.h), this.capacity);
+    this.mapSubdivsions((d, s) => {return new QuadTree(this.region.Center(s), this.capacity);});
     this.subdivided = true;
   }
+  mapSubdivsions(fn) {
+    for(let quadrent of this.subdivisions) {
+      let quad = fn(this[quadrent], quadrent);
+      if(quad)
+        this[quadrent] = quad;
+    }
+  }
+  // this gets the total number of points in the quad tree, recursive so each
+  // QuadTree only needs to check itself and add it's children size
   size() {
     let sum = this.points.length;
     if(this.subdivided) {
-      sum += this.northWest.size();
-      sum += this.northEast.size();
-      sum += this.southWest.size();
-      sum += this.southEast.size();
+      this.mapSubdivsions((d) => { sum += d.size();});
     }
     return sum;
   }
+  // insert a point into the quad tree
   insert(point) {
     if(!this.region.contains(point)) {
-      return;
+      return; // region doesn't contain the point
     }
     if(this.points.length < this.capacity) {
-      this.points.push(point);
+      this.points.push(point); // we have room for new point
     } else {
+      // no room at the inn time to check the subdivisions
       if(!this.subdivided) {
-        this.subdivide();
+        this.subdivide(); // subdivide the current tree
       }
-      this.northWest.insert(point);
-      this.northEast.insert(point);
-      this.southWest.insert(point);
-      this.southEast.insert(point);
+      // try to insert into the subdivisions if the region doesn't contain
+      // the point it will return immediately
+      this.mapSubdivsions((d) => {d.insert(point);});
     }
   }
   query(range, results) {
+    // if no results is passed in we create one so it can be returned
     if(!results) {
       results = [];
     }
     if(this.region.intersects(range)){
       for(let p of this.points) {
         if(range.contains(p)) {
-          results.push(p);
+          results.push(p); // point is in the range, add it to results
         }
       }
     }
     if(this.subdivided) {
-      this.northWest.query(range, results);
-      this.northEast.query(range, results);
-      this.southWest.query(range, results);
-      this.southEast.query(range, results);
+      // check the subdivisions if they have any points in the range
+      this.mapSubdivsions((d) => { d.query(range, results);});
     }
     return results;
   }
@@ -149,12 +161,9 @@ class QuadTree {
     noFill();
     stroke(0,255,0);
     strokeWeight(2);
-    rect(this.region.cx, this.region.cy, this.region.w*2, this.region.h*2);
+    rect(this.region.cx, this.region.cy, this.region.w, this.region.h);
     if(this.subdivided) {
-      this.northWest.show();
-      this.northEast.show();
-      this.southWest.show();
-      this.southEast.show();
+      this.mapSubdivsions((d) => {d.show();});
     }
   }
 }

@@ -13,11 +13,12 @@ class Particle {
     this.highlight = val;
   }
   render() {
-    if(this.highlight) {   
+    if(this.highlight) {
       fill(255);
     } else {
       fill(100);
     }
+    noStroke();
     ellipse(this.cx, this.cy, this.r*2, this.r*2);
   }
 }
