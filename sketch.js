@@ -68,7 +68,7 @@ function draw() {
   //rect(mouseX, mouseY, 50,50);
   //console.log(qTree.size());
   //noLoop();
-  //qTree.show();
+  qTree.show();
 }
 function distSq(x,y,oX,oY) {
   let dx = oX - x;
