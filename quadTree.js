@@ -1,3 +1,6 @@
+/**
+ * A container to hold x, y, and user data
+ */
 class Point {
   constructor(x, y, userData) {
     this.x = x;
@@ -6,6 +9,10 @@ class Point {
   }
 
 }
+/**
+ * This Class is a rectangular region with all the methods for intersecting
+ * checks and creating sub regions for a quad tree.
+ */
 class Region {
   constructor(cx, cy, w, h){
     this.cx = cx;
@@ -93,6 +100,10 @@ class Region {
   }
 }
 
+/**
+ * Class QuadTree a set of four regions that are subdivided into more quad trees
+ *  recursively. This makes searching a 2d plane faster, much like a binary tree.
+ */
 class QuadTree {
   constructor(region, cap) {
     this.region = region;
@@ -101,10 +112,17 @@ class QuadTree {
     this.subdivided = false;
     this.subdivisions = ["northWest", "northEast", "southWest", "southEast"];
   }
+  /**
+   * This method subdivides a region
+   */
   subdivide() {
     this.mapSubdivsions((d, s) => {return new QuadTree(this.region.Center(s), this.capacity);});
     this.subdivided = true;
   }
+  /**
+   * This method subdivides all the quadrents
+   * @param  {Function} fn how to make a new quad tree for that quadrent
+   */
   mapSubdivsions(fn) {
     for(let quadrent of this.subdivisions) {
       let quad = fn(this[quadrent], quadrent);
@@ -138,6 +156,13 @@ class QuadTree {
       this.mapSubdivsions((d) => {d.insert(point);});
     }
   }
+  /**
+   * This method checks if there are any points in the range
+   * @param  {Region} range   a Region to get all the points from
+   * @param  {Array<Points>} results the array of points that recursively get
+   * passed in to add to the results.
+   * @return {Array<Points>} The results.
+   */
   query(range, results) {
     // if no results is passed in we create one so it can be returned
     if(!results) {
@@ -156,6 +181,9 @@ class QuadTree {
     }
     return results;
   }
+  /**
+   * This method draws the subdivisions as lines
+   */
   show() {
     rectMode(CENTER);
     noFill();

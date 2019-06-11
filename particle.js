@@ -1,3 +1,6 @@
+/**
+ * Class Particle is a simple object that moves randomly when updated.
+ */
 class Particle {
   constructor(cx,cy, r) {
     this.cx = cx;
